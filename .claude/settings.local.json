@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find 'd:/MY_SOLUTION/CLAUDE AI/BudgetFlow/BudgetFlow.React/src/pages' -name *.jsx -o -name *.css)",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet ef:*)",
+      "Bash(dotnet tool:*)",
+      "Bash(npm install:*)",
+      "Bash(npx react-scripts:*)",
+      "Bash(curl -s http://localhost:8085/api/auth/login -H \"Content-Type: application/json\" -d \"{\"\"email\"\":\"\"test@test.com\"\",\"\"password\"\":\"\"123456\"\"}\")"
+    ]
+  }
+}
