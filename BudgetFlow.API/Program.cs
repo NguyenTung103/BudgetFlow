@@ -10,7 +10,7 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<BudgetAlertService>();
@@ -44,7 +44,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddSignalR();
 builder.Services.AddCors(options =>
     options.AddPolicy("AllowReact", policy =>
-        policy.WithOrigins("http://localhost:8086")
+        policy.WithOrigins("http://localhost:8086", "http://180.93.35.163:8086")
               .AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
 builder.Services.AddControllers();
@@ -73,7 +73,8 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors("AllowReact");
 app.UseAuthentication();

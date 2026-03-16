@@ -10,11 +10,21 @@ import { useGroup } from '../../contexts/GroupContext';
 import CustomSelect from '../../components/Common/CustomSelect';
 import './Reports.css';
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+}
+
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const COLORS = ['#4F46E5','#10B981','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#EC4899','#84CC16'];
 
 /** Tổng hợp chi tiêu / thu nhập theo từng thành viên */
-function MemberBreakdown({ expenses, incomes, members }) {
+function MemberBreakdown({ expenses, incomes, members, isMobile }) {
   if (!members || members.length === 0) return null;
 
   const rows = members.map(m => {
@@ -87,12 +97,12 @@ function MemberBreakdown({ expenses, incomes, members }) {
       </div>
 
       {activeRows.length > 1 && (
-        <ResponsiveContainer width="100%" height={200} style={{ marginTop: 16 }}>
-          <BarChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={v => v >= 1e6 ? `${(v/1e6).toFixed(0)}M` : `${(v/1e3).toFixed(0)}K`} />
+        <ResponsiveContainer width="100%" height={isMobile ? 160 : 200} style={{ marginTop: 16 }}>
+          <BarChart data={chartData} margin={{ top: 5, right: 8, bottom: 5, left: isMobile ? -10 : 0 }}>
+            <XAxis dataKey="name" tick={{ fontSize: isMobile ? 10 : 12 }} />
+            <YAxis width={isMobile ? 45 : 55} tick={{ fontSize: isMobile ? 9 : 11 }} tickFormatter={v => v >= 1e6 ? `${(v/1e6).toFixed(0)}M` : `${(v/1e3).toFixed(0)}K`} />
             <Tooltip formatter={v => fmt(v)} />
-            <Legend />
+            <Legend wrapperStyle={{ fontSize: isMobile ? 11 : 13 }} />
             <Bar dataKey="Chi tiêu" fill="#EF4444" radius={[4,4,0,0]} />
             <Bar dataKey="Thu nhập" fill="#10B981" radius={[4,4,0,0]} />
           </BarChart>
@@ -103,6 +113,7 @@ function MemberBreakdown({ expenses, incomes, members }) {
 }
 
 export default function ReportsPage() {
+  const isMobile = useIsMobile();
   const { activeGroup } = useGroup();
   const [period, setPeriod]   = useState('month');
   const [month, setMonth]     = useState(new Date().getMonth() + 1);
@@ -260,15 +271,16 @@ export default function ReportsPage() {
           <div className="report-card">
             <h3>Biến động thu chi theo ngày</h3>
             {dailyChartData.some(d => d['Thu nhập'] > 0 || d['Chi tiêu'] > 0) ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={dailyChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <ResponsiveContainer width="100%" height={isMobile ? 200 : 280}>
+                <LineChart data={dailyChartData} margin={{ top: 5, right: 8, bottom: 5, left: isMobile ? -10 : 0 }}>
+                  <XAxis dataKey="date" tick={{ fontSize: isMobile ? 9 : 11 }} interval={isMobile ? 3 : 0} />
                   <YAxis
-                    tick={{ fontSize: 11 }}
+                    width={isMobile ? 45 : 55}
+                    tick={{ fontSize: isMobile ? 9 : 11 }}
                     tickFormatter={v => v >= 1e6 ? `${(v/1e6).toFixed(0)}M` : `${(v/1e3).toFixed(0)}K`}
                   />
                   <Tooltip formatter={v => fmt(v)} />
-                  <Legend />
+                  <Legend wrapperStyle={{ fontSize: isMobile ? 11 : 13 }} />
                   <Line type="monotone" dataKey="Thu nhập" stroke="#10B981" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="Chi tiêu" stroke="#EF4444" strokeWidth={2} dot={false} />
                 </LineChart>
@@ -283,6 +295,7 @@ export default function ReportsPage() {
             expenses={expenses}
             incomes={incomes}
             members={activeGroup?.members || []}
+            isMobile={isMobile}
           />
 
           <div className="report-grid-2">
@@ -291,18 +304,19 @@ export default function ReportsPage() {
               <h3>Chi tiêu theo danh mục</h3>
               {expensePieData.length > 0 ? (
                 <>
-                  <ResponsiveContainer width="100%" height={220}>
+                  <ResponsiveContainer width="100%" height={isMobile ? 190 : 220}>
                     <PieChart>
                       <Pie
                         data={expensePieData}
-                        cx="40%" cy="50%"
-                        innerRadius={50} outerRadius={80}
+                        cx={isMobile ? "50%" : "40%"} cy="50%"
+                        innerRadius={isMobile ? 38 : 50}
+                        outerRadius={isMobile ? 62 : 80}
                         dataKey="value"
                       >
                         {expensePieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
                       <Tooltip formatter={v => fmt(v)} />
-                      <Legend />
+                      <Legend layout={isMobile ? "horizontal" : "vertical"} align={isMobile ? "center" : "right"} verticalAlign={isMobile ? "bottom" : "middle"} wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="category-breakdown">
@@ -328,18 +342,19 @@ export default function ReportsPage() {
               <h3>Thu nhập theo danh mục</h3>
               {incomePieData.length > 0 ? (
                 <>
-                  <ResponsiveContainer width="100%" height={220}>
+                  <ResponsiveContainer width="100%" height={isMobile ? 190 : 220}>
                     <PieChart>
                       <Pie
                         data={incomePieData}
-                        cx="40%" cy="50%"
-                        innerRadius={50} outerRadius={80}
+                        cx={isMobile ? "50%" : "40%"} cy="50%"
+                        innerRadius={isMobile ? 38 : 50}
+                        outerRadius={isMobile ? 62 : 80}
                         dataKey="value"
                       >
                         {incomePieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
                       <Tooltip formatter={v => fmt(v)} />
-                      <Legend />
+                      <Legend layout={isMobile ? "horizontal" : "vertical"} align={isMobile ? "center" : "right"} verticalAlign={isMobile ? "bottom" : "middle"} wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="category-breakdown">

@@ -119,14 +119,16 @@
   .stat-card { padding: 14px; }
   .stat-value { font-size: 1.1rem; }
   .stat-icon { width: 30px; height: 30px; }
-  .card { padding: 14px; }
+  .card { padding: 14px; overflow: hidden; }
   .dashboard-grid { gap: 14px; }
   .page-header h2 { font-size: 1.2rem; }
   .header-actions { gap: 6px; }
   .btn-outline, .btn-primary-sm { padding: 7px 12px; font-size: 0.8rem; }
+  .budget-item-header { font-size: 0.78rem; }
 }
 
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .stat-value { font-size: 1rem; }
+  .txn-meta { font-size: 0.7rem; }
 }

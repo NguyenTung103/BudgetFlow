@@ -101,8 +101,28 @@
   .report-stats { grid-template-columns: repeat(2, 1fr); }
   .report-grid-2 { grid-template-columns: 1fr; }
 }
+
 @media (max-width: 768px) {
-  .report-stats { grid-template-columns: 1fr 1fr; }
-  .budget-status-row { grid-template-columns: 1fr auto; }
+  .reports-page { gap: 14px; }
+  .report-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .report-stat { padding: 14px; }
+  .report-stat-value { font-size: 1rem; }
+  .report-card { padding: 16px; overflow: hidden; }
+  .report-grid-2 { gap: 14px; }
+
+  /* Budget status table trên mobile */
+  .budget-status-row {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
   .bs-bar { display: none; }
+  .bs-amounts { font-size: 0.75rem; }
+  .bs-pct { font-size: 0.75rem; }
+  .bs-cat { font-size: 0.8rem; }
+
+  /* member stats */
+  .member-stats-grid { grid-template-columns: 1fr; }
+  .page-header { gap: 8px; }
+  .page-header h2 { font-size: 1.2rem; }
+  .report-filters { gap: 6px; }
 }

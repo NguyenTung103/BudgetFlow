@@ -14,7 +14,7 @@ export function SignalRProvider({ children }) {
     if (!user) return;
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl('http://localhost:8085/hubs/sync', {
+      .withUrl(process.env.REACT_APP_HUB_URL || 'http://localhost:8085/hubs/sync', {
         accessTokenFactory: () => localStorage.getItem('accessToken') || ''
       })
       .withAutomaticReconnect()

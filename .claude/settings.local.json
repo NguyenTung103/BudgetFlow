@@ -8,7 +8,12 @@
       "Bash(dotnet tool:*)",
       "Bash(npm install:*)",
       "Bash(npx react-scripts:*)",
-      "Bash(curl -s http://localhost:8085/api/auth/login -H \"Content-Type: application/json\" -d \"{\"\"email\"\":\"\"test@test.com\"\",\"\"password\"\":\"\"123456\"\"}\")"
+      "Bash(curl -s http://localhost:8085/api/auth/login -H \"Content-Type: application/json\" -d \"{\"\"email\"\":\"\"test@test.com\"\",\"\"password\"\":\"\"123456\"\"}\")",
+      "Bash(netstat -ano)",
+      "Bash(findstr :8085)",
+      "Bash(netsh int:*)",
+      "Bash(xargs grep:*)",
+      "Bash(find 'd:/MY_SOLUTION/CLAUDE AI/BudgetFlow/BudgetFlow.React/src' -name *.jsx)"
     ]
   }
 }

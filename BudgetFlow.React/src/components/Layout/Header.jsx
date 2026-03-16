@@ -1,17 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, Bell, CheckCheck, ChevronDown } from 'lucide-react';
+import { Menu, Bell, CheckCheck, ChevronDown, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useGroup } from '../../contexts/GroupContext';
 import { useSignalR } from '../../contexts/SignalRContext';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import './Header.css';
 
 export default function Header({ onMenuClick }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { activeGroup, groups, selectGroup } = useGroup();
   const { connected, on } = useSignalR();
+  const navigate = useNavigate();
   const [groupOpen, setGroupOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
   const groupRef = useRef(null);
+  const userRef = useRef(null);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (userRef.current && !userRef.current.contains(e.target)) setUserOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   useEffect(() => {
     function handleClick(e) {
@@ -127,9 +144,33 @@ export default function Header({ onMenuClick }) {
           )}
         </div>
 
-        <div className="user-chip">
-          <div className="user-avatar-sm">{user?.fullName?.[0] || 'U'}</div>
-          <span>{user?.fullName}</span>
+        <div className="user-menu-wrapper" ref={userRef}>
+          <button className="user-chip" onClick={() => setUserOpen(!userOpen)}>
+            <div className="user-avatar-sm">{user?.fullName?.[0] || 'U'}</div>
+            <span>{user?.fullName}</span>
+            <ChevronDown size={13} className={`user-chevron ${userOpen ? 'open' : ''}`} />
+          </button>
+
+          {userOpen && (
+            <div className="user-dropdown">
+              <div className="user-dropdown-info">
+                <div className="user-dropdown-avatar">{user?.fullName?.[0] || 'U'}</div>
+                <div>
+                  <div className="user-dropdown-name">{user?.fullName}</div>
+                  <div className="user-dropdown-email">{user?.email}</div>
+                </div>
+              </div>
+              <div className="user-dropdown-divider" />
+              <button className="user-dropdown-item" onClick={() => { navigate('/profile'); setUserOpen(false); }}>
+                <User size={15} />
+                Tài khoản của tôi
+              </button>
+              <button className="user-dropdown-item danger" onClick={handleLogout}>
+                <LogOut size={15} />
+                Đăng xuất
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

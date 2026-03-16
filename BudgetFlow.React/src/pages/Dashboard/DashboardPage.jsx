@@ -12,6 +12,16 @@ import { useSignalR } from '../../contexts/SignalRContext';
 import GroupBanner from '../../components/Common/GroupBanner';
 import './Dashboard.css';
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+}
+
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 
 function StatCard({ title, value, icon: Icon, color }) {
@@ -31,6 +41,7 @@ function StatCard({ title, value, icon: Icon, color }) {
 const COLORS = ['#4F46E5','#10B981','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#EC4899','#84CC16'];
 
 export default function DashboardPage() {
+  const isMobile = useIsMobile();
   const { activeGroup } = useGroup();
   const { on } = useSignalR();
   const [summary, setSummary] = useState(null);
@@ -145,15 +156,16 @@ export default function DashboardPage() {
       <div className="dashboard-grid">
         <div className="card">
           <div className="card-header"><h3>Thu chi theo ngày</h3></div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={dailyData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+          <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
+            <BarChart data={dailyData} margin={{ top: 5, right: 8, bottom: 5, left: isMobile ? -10 : 0 }}>
+              <XAxis dataKey="date" tick={{ fontSize: isMobile ? 9 : 11 }} interval={isMobile ? 2 : 0} />
               <YAxis
-                tick={{ fontSize: 11 }}
+                width={isMobile ? 45 : 55}
+                tick={{ fontSize: isMobile ? 9 : 11 }}
                 tickFormatter={v => v >= 1e6 ? `${(v/1e6).toFixed(0)}M` : `${(v/1e3).toFixed(0)}K`}
               />
               <Tooltip formatter={v => fmt(v)} />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: isMobile ? 11 : 13 }} />
               <Bar dataKey="Thu nhập" fill="#10B981" radius={[4,4,0,0]} />
               <Bar dataKey="Chi tiêu" fill="#EF4444" radius={[4,4,0,0]} />
             </BarChart>
@@ -163,18 +175,19 @@ export default function DashboardPage() {
         <div className="card">
           <div className="card-header"><h3>Chi tiêu theo danh mục</h3></div>
           {pieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={isMobile ? 200 : 220}>
               <PieChart>
                 <Pie
                   data={pieData}
-                  cx="40%" cy="50%"
-                  innerRadius={55} outerRadius={85}
+                  cx={isMobile ? "50%" : "40%"} cy="50%"
+                  innerRadius={isMobile ? 40 : 55}
+                  outerRadius={isMobile ? 65 : 85}
                   dataKey="value" nameKey="name"
                 >
                   {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
                 <Tooltip formatter={v => fmt(v)} />
-                <Legend />
+                <Legend layout={isMobile ? "horizontal" : "vertical"} align={isMobile ? "center" : "right"} verticalAlign={isMobile ? "bottom" : "middle"} wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
               </PieChart>
             </ResponsiveContainer>
           ) : <div className="chart-empty">Chưa có dữ liệu</div>}
