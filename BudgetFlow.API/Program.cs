@@ -6,11 +6,23 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+var redisSection = builder.Configuration.GetSection("Redis");
+var redisConn = redisSection["ConnectionString"]!;
+var redisInstance = redisSection["InstanceName"] ?? "BudgetFlow:";
+builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConn));
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConn;
+    options.InstanceName = redisInstance;
+});
+builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<BudgetAlertService>();

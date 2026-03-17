@@ -17,9 +17,10 @@ public class ExpensesController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IHubContext<SyncHub> _hub;
     private readonly BudgetAlertService _budgetAlert;
+    private readonly ICacheService _cache;
 
-    public ExpensesController(AppDbContext db, IHubContext<SyncHub> hub, BudgetAlertService budgetAlert)
-    { _db = db; _hub = hub; _budgetAlert = budgetAlert; }
+    public ExpensesController(AppDbContext db, IHubContext<SyncHub> hub, BudgetAlertService budgetAlert, ICacheService cache)
+    { _db = db; _hub = hub; _budgetAlert = budgetAlert; _cache = cache; }
 
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -62,6 +63,8 @@ public class ExpensesController : ControllerBase
         var dto = MapToDto(expense);
         await _hub.Clients.Group($"group_{request.GroupId}").SendAsync("ExpenseCreated", dto);
         await _budgetAlert.CheckAndNotifyBudgetAsync(request.GroupId, request.CategoryId, request.Date.Month, request.Date.Year);
+        await _cache.RemoveByPatternAsync($"report:summary:{request.GroupId}");
+        await _cache.RemoveByPatternAsync($"report:monthly:{request.GroupId}");
         return CreatedAtAction(nameof(GetExpense), new { id = expense.Id }, dto);
     }
 
@@ -81,6 +84,8 @@ public class ExpensesController : ControllerBase
         var dto = MapToDto(expense);
         await _hub.Clients.Group($"group_{expense.GroupId}").SendAsync("ExpenseUpdated", dto);
         await _budgetAlert.CheckAndNotifyBudgetAsync(expense.GroupId, expense.CategoryId, expense.Date.Month, expense.Date.Year);
+        await _cache.RemoveByPatternAsync($"report:summary:{expense.GroupId}");
+        await _cache.RemoveByPatternAsync($"report:monthly:{expense.GroupId}");
         return dto;
     }
 
@@ -94,6 +99,8 @@ public class ExpensesController : ControllerBase
         _db.Expenses.Remove(expense);
         await _db.SaveChangesAsync();
         await _hub.Clients.Group($"group_{expense.GroupId}").SendAsync("ExpenseDeleted", new { id, groupId = expense.GroupId });
+        await _cache.RemoveByPatternAsync($"report:summary:{expense.GroupId}");
+        await _cache.RemoveByPatternAsync($"report:monthly:{expense.GroupId}");
         return NoContent();
     }
 

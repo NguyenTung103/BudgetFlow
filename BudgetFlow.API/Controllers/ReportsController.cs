@@ -1,5 +1,6 @@
 using BudgetFlow.API.Data;
 using BudgetFlow.API.DTOs;
+using BudgetFlow.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,8 @@ namespace BudgetFlow.API.Controllers;
 public class ReportsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public ReportsController(AppDbContext db) => _db = db;
+    private readonly ICacheService _cache;
+    public ReportsController(AppDbContext db, ICacheService cache) { _db = db; _cache = cache; }
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet("summary")]
@@ -20,6 +22,50 @@ public class ReportsController : ControllerBase
         var userId = CurrentUserId;
         if (!await _db.GroupMembers.AnyAsync(gm => gm.GroupId == groupId && gm.UserId == userId)) return Forbid();
 
+        var cacheKey = $"report:summary:{groupId}:{from:yyyyMMdd}:{to:yyyyMMdd}";
+        var cached = await _cache.GetAsync<ReportSummary>(cacheKey);
+        if (cached is not null) return cached;
+
+        var result = await BuildSummaryAsync(groupId, from, to);
+        await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5));
+        return result;
+    }
+
+    [HttpGet("monthly")]
+    public async Task<ActionResult<MonthlyReport>> GetMonthly([FromQuery] int groupId, [FromQuery] int month, [FromQuery] int year)
+    {
+        var userId = CurrentUserId;
+        if (!await _db.GroupMembers.AnyAsync(gm => gm.GroupId == groupId && gm.UserId == userId)) return Forbid();
+
+        var cacheKey = $"report:monthly:{groupId}:{year}:{month}";
+        var cached = await _cache.GetAsync<MonthlyReport>(cacheKey);
+        if (cached is not null) return cached;
+
+        var from = new DateTime(year, month, 1);
+        var to = from.AddMonths(1).AddDays(-1);
+        var s = await BuildSummaryAsync(groupId, from, to);
+
+        var budgets = await _db.Budgets.Include(b => b.Category)
+            .Where(b => b.GroupId == groupId && b.Month == month && b.Year == year).ToListAsync();
+
+        var budgetStatuses = new List<BudgetStatus>();
+        foreach (var budget in budgets)
+        {
+            var spent = await _db.Expenses.Where(e => e.GroupId == groupId && e.CategoryId == budget.CategoryId
+                && e.Date.Month == month && e.Date.Year == year).SumAsync(e => e.Amount);
+            var pct = budget.LimitAmount > 0 ? spent / budget.LimitAmount * 100 : 0;
+            budgetStatuses.Add(new BudgetStatus(budget.Id, budget.Category.Name, budget.Category.Icon,
+                budget.Category.Color, budget.LimitAmount, spent, pct, spent > budget.LimitAmount));
+        }
+
+        var result = new MonthlyReport(month, year, s.TotalIncome, s.TotalExpense, s.Balance,
+            s.ExpenseByCategory, s.IncomeByCategory, budgetStatuses);
+        await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5));
+        return result;
+    }
+
+    private async Task<ReportSummary> BuildSummaryAsync(int groupId, DateTime from, DateTime to)
+    {
         var expenses = await _db.Expenses.Include(e => e.Category)
             .Where(e => e.GroupId == groupId && e.Date >= from && e.Date <= to).ToListAsync();
         var incomes = await _db.Incomes.Include(i => i.Category)
@@ -44,34 +90,5 @@ public class ReportsController : ControllerBase
             expenses.Where(e => e.Date.Date == date).Sum(e => e.Amount))).ToList();
 
         return new ReportSummary(totalIncome, totalExpense, totalIncome - totalExpense, expenseByCat, incomeByCat, dailyTotals);
-    }
-
-    [HttpGet("monthly")]
-    public async Task<ActionResult<MonthlyReport>> GetMonthly([FromQuery] int groupId, [FromQuery] int month, [FromQuery] int year)
-    {
-        var userId = CurrentUserId;
-        if (!await _db.GroupMembers.AnyAsync(gm => gm.GroupId == groupId && gm.UserId == userId)) return Forbid();
-
-        var from = new DateTime(year, month, 1);
-        var to = from.AddMonths(1).AddDays(-1);
-        var summaryResult = await GetSummary(groupId, from, to);
-        if (summaryResult.Result != null) return summaryResult.Result!;
-        var s = summaryResult.Value!;
-
-        var budgets = await _db.Budgets.Include(b => b.Category)
-            .Where(b => b.GroupId == groupId && b.Month == month && b.Year == year).ToListAsync();
-
-        var budgetStatuses = new List<BudgetStatus>();
-        foreach (var budget in budgets)
-        {
-            var spent = await _db.Expenses.Where(e => e.GroupId == groupId && e.CategoryId == budget.CategoryId
-                && e.Date.Month == month && e.Date.Year == year).SumAsync(e => e.Amount);
-            var pct = budget.LimitAmount > 0 ? spent / budget.LimitAmount * 100 : 0;
-            budgetStatuses.Add(new BudgetStatus(budget.Id, budget.Category.Name, budget.Category.Icon,
-                budget.Category.Color, budget.LimitAmount, spent, pct, spent > budget.LimitAmount));
-        }
-
-        return new MonthlyReport(month, year, s.TotalIncome, s.TotalExpense, s.Balance,
-            s.ExpenseByCategory, s.IncomeByCategory, budgetStatuses);
     }
 }

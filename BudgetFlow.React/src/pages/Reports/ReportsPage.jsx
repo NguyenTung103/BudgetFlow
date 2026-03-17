@@ -123,10 +123,12 @@ export default function ReportsPage() {
   const [expenses, setExpenses] = useState([]);
   const [incomes, setIncomes]   = useState([]);
   const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(null);
 
   const fetchReports = useCallback(async () => {
     if (!activeGroup) return;
     setLoading(true);
+    setError(null);
     try {
       let from, to;
       if (period === 'month') {
@@ -142,14 +144,13 @@ export default function ReportsPage() {
         to   = new Date(year, 11, 31, 23, 59, 59, 999);
       }
 
-      const [summaryRes, monthlyRes, expensesRes, incomesRes] = await Promise.all([
+      const [summaryRes, monthlyRes, expensesRes, incomesRes] = await Promise.allSettled([
         api.get('/reports/summary', {
           params: { groupId: activeGroup.id, from: from.toISOString(), to: to.toISOString() }
         }),
         api.get('/reports/monthly', {
           params: { groupId: activeGroup.id, month, year }
         }),
-        // Lấy toàn bộ chi tiêu của nhóm (không lọc userId) để tính theo thành viên
         api.get('/expenses', {
           params: { groupId: activeGroup.id, from: from.toISOString(), to: to.toISOString() }
         }),
@@ -158,12 +159,16 @@ export default function ReportsPage() {
         }),
       ]);
 
-      setSummary(summaryRes.data);
-      setMonthly(monthlyRes.data);
-      setExpenses(expensesRes.data);
-      setIncomes(incomesRes.data);
+      if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data);
+      else { console.error('summary error:', summaryRes.reason); setError('Không tải được dữ liệu báo cáo'); }
+
+      if (monthlyRes.status === 'fulfilled') setMonthly(monthlyRes.value.data);
+      if (expensesRes.status === 'fulfilled') setExpenses(expensesRes.value.data);
+      if (incomesRes.status === 'fulfilled') setIncomes(incomesRes.value.data);
+
     } catch (err) {
       console.error('Lỗi tải báo cáo:', err);
+      setError('Đã xảy ra lỗi khi tải báo cáo');
     } finally {
       setLoading(false);
     }
@@ -230,6 +235,11 @@ export default function ReportsPage() {
 
       {loading ? (
         <div className="page-loading"><div className="spinner-lg" /></div>
+      ) : error && !summary ? (
+        <div className="report-error">
+          <span>⚠️ {error}</span>
+          <button onClick={fetchReports} className="btn-retry">Thử lại</button>
+        </div>
       ) : (
         <>
           {/* Thông báo nhóm */}

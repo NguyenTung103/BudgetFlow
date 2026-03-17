@@ -2,6 +2,7 @@ using BudgetFlow.API.Data;
 using BudgetFlow.API.DTOs;
 using BudgetFlow.API.Hubs;
 using BudgetFlow.API.Models;
+using BudgetFlow.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -15,7 +16,8 @@ public class IncomesController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IHubContext<SyncHub> _hub;
-    public IncomesController(AppDbContext db, IHubContext<SyncHub> hub) { _db = db; _hub = hub; }
+    private readonly ICacheService _cache;
+    public IncomesController(AppDbContext db, IHubContext<SyncHub> hub, ICacheService cache) { _db = db; _hub = hub; _cache = cache; }
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet]
@@ -55,6 +57,8 @@ public class IncomesController : ControllerBase
         await _db.Entry(income).Reference(i => i.User).LoadAsync();
         var dto = MapToDto(income);
         await _hub.Clients.Group($"group_{request.GroupId}").SendAsync("IncomeCreated", dto);
+        await _cache.RemoveByPatternAsync($"report:summary:{request.GroupId}");
+        await _cache.RemoveByPatternAsync($"report:monthly:{request.GroupId}");
         return CreatedAtAction(nameof(GetIncome), new { id = income.Id }, dto);
     }
 
@@ -73,6 +77,8 @@ public class IncomesController : ControllerBase
         await _db.SaveChangesAsync();
         var dto = MapToDto(income);
         await _hub.Clients.Group($"group_{income.GroupId}").SendAsync("IncomeUpdated", dto);
+        await _cache.RemoveByPatternAsync($"report:summary:{income.GroupId}");
+        await _cache.RemoveByPatternAsync($"report:monthly:{income.GroupId}");
         return dto;
     }
 
@@ -86,6 +92,8 @@ public class IncomesController : ControllerBase
         _db.Incomes.Remove(income);
         await _db.SaveChangesAsync();
         await _hub.Clients.Group($"group_{income.GroupId}").SendAsync("IncomeDeleted", new { id, groupId = income.GroupId });
+        await _cache.RemoveByPatternAsync($"report:summary:{income.GroupId}");
+        await _cache.RemoveByPatternAsync($"report:monthly:{income.GroupId}");
         return NoContent();
     }
 

@@ -13,7 +13,13 @@
       "Bash(findstr :8085)",
       "Bash(netsh int:*)",
       "Bash(xargs grep:*)",
-      "Bash(find 'd:/MY_SOLUTION/CLAUDE AI/BudgetFlow/BudgetFlow.React/src' -name *.jsx)"
+      "Bash(find 'd:/MY_SOLUTION/CLAUDE AI/BudgetFlow/BudgetFlow.React/src' -name *.jsx)",
+      "Bash(flutter create:*)",
+      "Bash(flutter pub:*)",
+      "Bash(start ms-settings:developers)",
+      "Bash(flutter devices:*)",
+      "Bash(flutter run:*)",
+      "Bash(dotnet add:*)"
     ]
   }
 }
