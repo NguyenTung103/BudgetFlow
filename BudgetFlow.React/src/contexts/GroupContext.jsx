@@ -10,11 +10,12 @@ export function GroupProvider({ children }) {
   const [groups, setGroups] = useState([]);
   const [activeGroup, setActiveGroup] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [invitations, setInvitations] = useState([]);
   const prevGroupIdsRef = useRef(null);
 
   useEffect(() => {
-    if (user) fetchGroups();
-    else { setGroups([]); setActiveGroup(null); prevGroupIdsRef.current = null; }
+    if (user) { fetchGroups(); fetchInvitations(); }
+    else { setGroups([]); setActiveGroup(null); setInvitations([]); prevGroupIdsRef.current = null; }
   }, [user]);
 
   const fetchGroups = async () => {
@@ -27,7 +28,7 @@ export function GroupProvider({ children }) {
       if (prevGroupIdsRef.current !== null) {
         const newGroups = data.filter(g => !prevGroupIdsRef.current.includes(g.id));
         newGroups.forEach(g => {
-          toast.success(`Bạn đã được thêm vào nhóm "${g.name}"! Chuyển nhóm trong sidebar để xem dữ liệu.`, { duration: 6000 });
+          toast.success(`Bạn đã tham gia nhóm "${g.name}"!`, { duration: 6000 });
         });
       }
       prevGroupIdsRef.current = data.map(g => g.id);
@@ -38,7 +39,6 @@ export function GroupProvider({ children }) {
       if (saved) {
         setActiveGroup(saved);
       } else {
-        // Ưu tiên nhóm có nhiều thành viên nhất (nhóm chia sẻ), bỏ qua nhóm cá nhân chỉ có 1 mình
         const sharedGroup = data.find(g => g.members?.length > 1);
         const defaultGroup = sharedGroup || data[0] || null;
         setActiveGroup(defaultGroup);
@@ -48,6 +48,15 @@ export function GroupProvider({ children }) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInvitations = async () => {
+    try {
+      const { data } = await api.get('/invitations');
+      setInvitations(data);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -62,9 +71,20 @@ export function GroupProvider({ children }) {
     return data;
   };
 
+  const deleteGroup = async (groupId) => {
+    await api.delete(`/groups/${groupId}`);
+    setGroups(prev => prev.filter(g => g.id !== groupId));
+    if (activeGroup?.id === groupId) {
+      const remaining = groups.filter(g => g.id !== groupId);
+      const next = remaining[0] || null;
+      setActiveGroup(next);
+      if (next) localStorage.setItem('activeGroupId', next.id);
+      else localStorage.removeItem('activeGroupId');
+    }
+  };
+
   const addMember = async (groupId, email) => {
     const { data } = await api.post(`/groups/${groupId}/members`, { email });
-    await fetchGroups();
     return data;
   };
 
@@ -73,10 +93,24 @@ export function GroupProvider({ children }) {
     await fetchGroups();
   };
 
+  const acceptInvitation = async (invitationId) => {
+    const { data } = await api.post(`/invitations/${invitationId}/accept`);
+    setInvitations(prev => prev.filter(i => i.id !== invitationId));
+    await fetchGroups();
+    return data;
+  };
+
+  const declineInvitation = async (invitationId) => {
+    const { data } = await api.post(`/invitations/${invitationId}/decline`);
+    setInvitations(prev => prev.filter(i => i.id !== invitationId));
+    return data;
+  };
+
   return (
     <GroupContext.Provider value={{
-      groups, activeGroup, loading,
-      selectGroup, createGroup, addMember, removeMember, fetchGroups
+      groups, activeGroup, loading, invitations,
+      selectGroup, createGroup, deleteGroup, addMember, removeMember,
+      fetchGroups, fetchInvitations, acceptInvitation, declineInvitation
     }}>
       {children}
     </GroupContext.Provider>

@@ -41,8 +41,16 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GroupProvider>().fetchGroups();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<GroupProvider>().fetchGroups();
+      if (mounted) {
+        final err = context.read<GroupProvider>().error;
+        if (err != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(err), backgroundColor: Colors.red.shade600, duration: const Duration(seconds: 5)),
+          );
+        }
+      }
     });
   }
 

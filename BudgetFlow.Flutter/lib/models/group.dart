@@ -6,12 +6,18 @@ class GroupMember {
 
   GroupMember({required this.userId, required this.fullName, required this.email, required this.role});
 
-  factory GroupMember.fromJson(Map<String, dynamic> json) => GroupMember(
-    userId: json['userId'],
-    fullName: json['fullName'] ?? '',
-    email: json['email'] ?? '',
-    role: json['role'] ?? 'Member',
-  );
+  factory GroupMember.fromJson(Map<String, dynamic> json) {
+    final rawRole = json['role'];
+    final role = rawRole is int
+        ? const ['Owner', 'Admin', 'Member'][rawRole.clamp(0, 2)]
+        : (rawRole?.toString() ?? 'Member');
+    return GroupMember(
+      userId: json['userId'],
+      fullName: json['fullName'] ?? '',
+      email: json['email'] ?? '',
+      role: role,
+    );
+  }
 }
 
 class Group {

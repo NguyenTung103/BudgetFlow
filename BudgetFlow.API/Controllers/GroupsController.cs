@@ -1,6 +1,7 @@
 using BudgetFlow.API.Data;
 using BudgetFlow.API.DTOs;
 using BudgetFlow.API.Models;
+using BudgetFlow.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,19 +13,26 @@ namespace BudgetFlow.API.Controllers;
 public class GroupsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public GroupsController(AppDbContext db) => _db = db;
+    private readonly ICacheService _cache;
+    public GroupsController(AppDbContext db, ICacheService cache) { _db = db; _cache = cache; }
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet]
     public async Task<ActionResult<List<GroupDto>>> GetMyGroups()
     {
         var userId = CurrentUserId;
+        var cacheKey = $"groups:user:{userId}";
+        var cached = await _cache.GetAsync<List<GroupDto>>(cacheKey);
+        if (cached is not null) return cached;
+
         var groups = await _db.GroupMembers
             .Where(gm => gm.UserId == userId)
             .Include(gm => gm.Group).ThenInclude(g => g.Owner)
             .Include(gm => gm.Group).ThenInclude(g => g.Members).ThenInclude(m => m.User)
             .Select(gm => gm.Group).ToListAsync();
-        return groups.Select(MapToDto).ToList();
+        var result = groups.Select(MapToDto).ToList();
+        await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(2));
+        return result;
     }
 
     [HttpGet("{id}")]
@@ -48,6 +56,7 @@ public class GroupsController : ControllerBase
         await _db.SaveChangesAsync();
         _db.GroupMembers.Add(new GroupMember { GroupId = group.Id, UserId = userId, Role = GroupRole.Owner });
         await _db.SaveChangesAsync();
+        await _cache.RemoveAsync($"groups:user:{userId}");
         return await GetGroupFull(group.Id);
     }
 
@@ -62,6 +71,7 @@ public class GroupsController : ControllerBase
         if (request.Name != null) group.Name = request.Name;
         if (request.Description != null) group.Description = request.Description;
         await _db.SaveChangesAsync();
+        await _cache.RemoveByPatternAsync($"groups:user:");
         return await GetGroupFull(id);
     }
 
@@ -74,24 +84,30 @@ public class GroupsController : ControllerBase
         if (group.OwnerId != userId) return Forbid();
         _db.Groups.Remove(group);
         await _db.SaveChangesAsync();
+        await _cache.RemoveByPatternAsync($"groups:user:");
         return NoContent();
     }
 
     [HttpPost("{id}/members")]
-    public async Task<ActionResult<GroupMemberDto>> AddMember(int id, AddMemberRequest request)
+    public async Task<IActionResult> AddMember(int id, AddMemberRequest request)
     {
         var userId = CurrentUserId;
         var isAdmin = await _db.GroupMembers.AnyAsync(gm => gm.GroupId == id && gm.UserId == userId
             && (gm.Role == GroupRole.Admin || gm.Role == GroupRole.Owner));
         if (!isAdmin) return Forbid();
+        var group = await _db.Groups.FindAsync(id);
+        if (group == null) return NotFound();
         var userToAdd = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
         if (userToAdd == null) return NotFound(new { message = "Không tìm thấy người dùng với email này" });
         if (await _db.GroupMembers.AnyAsync(gm => gm.GroupId == id && gm.UserId == userToAdd.Id))
             return BadRequest(new { message = "Người dùng đã là thành viên của nhóm" });
-        var member = new GroupMember { GroupId = id, UserId = userToAdd.Id, Role = GroupRole.Member };
-        _db.GroupMembers.Add(member);
+        // Check for existing pending invitation
+        if (await _db.GroupInvitations.AnyAsync(i => i.GroupId == id && i.InviteeId == userToAdd.Id && i.Status == InvitationStatus.Pending))
+            return BadRequest(new { message = "Đã gửi lời mời cho người dùng này, đang chờ chấp thuận" });
+        var invitation = new GroupInvitation { GroupId = id, InviterId = userId, InviteeId = userToAdd.Id };
+        _db.GroupInvitations.Add(invitation);
         await _db.SaveChangesAsync();
-        return new GroupMemberDto(userToAdd.Id, userToAdd.FullName, userToAdd.Email, userToAdd.AvatarUrl, GroupRole.Member, member.JoinedAt);
+        return Ok(new { message = $"Đã gửi lời mời tới {userToAdd.Email}, chờ người dùng chấp thuận" });
     }
 
     [HttpDelete("{id}/members/{memberId}")]
@@ -105,6 +121,8 @@ public class GroupsController : ControllerBase
         if (member.Role == GroupRole.Owner) return BadRequest(new { message = "Không thể xóa chủ nhóm" });
         _db.GroupMembers.Remove(member);
         await _db.SaveChangesAsync();
+        await _cache.RemoveAsync($"groups:user:{userId}");
+        await _cache.RemoveAsync($"groups:user:{memberId}");
         return NoContent();
     }
 

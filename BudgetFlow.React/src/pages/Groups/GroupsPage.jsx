@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Plus, UserPlus, Trash2, Crown, X, Shield, Edit2 } from 'lucide-react';
+import { Users, Plus, UserPlus, Trash2, Crown, X, Shield, Edit2, Bell, Check, XCircle, Mail } from 'lucide-react';
 import { useGroup } from '../../contexts/GroupContext';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/axios';
@@ -104,7 +104,7 @@ function RenameGroupModal({ group, onClose, onSaved }) {
   );
 }
 
-function AddMemberModal({ groupId, onClose, onAdded }) {
+function AddMemberModal({ groupId, onClose, onSent }) {
   const { addMember } = useGroup();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -113,9 +113,9 @@ function AddMemberModal({ groupId, onClose, onAdded }) {
     e.preventDefault();
     setLoading(true);
     try {
-      await addMember(groupId, email);
-      toast.success('Thêm thành viên thành công!');
-      onAdded();
+      const result = await addMember(groupId, email);
+      toast.success(result.message || 'Đã gửi lời mời!');
+      onSent?.();
       onClose();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Không tìm thấy người dùng');
@@ -126,10 +126,14 @@ function AddMemberModal({ groupId, onClose, onAdded }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3>Thêm thành viên</h3>
+          <h3>Mời thành viên</h3>
           <button className="modal-close" onClick={onClose}><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit} className="modal-form">
+          <div className="invite-info-box">
+            <Mail size={16} />
+            <span>Người được mời sẽ nhận được lời mời và cần chấp thuận trước khi tham gia nhóm.</span>
+          </div>
           <div className="form-group">
             <label>Email thành viên</label>
             <input type="email" placeholder="email@example.com" value={email}
@@ -139,7 +143,7 @@ function AddMemberModal({ groupId, onClose, onAdded }) {
           <div className="modal-footer">
             <button type="button" className="btn-cancel" onClick={onClose}>Hủy</button>
             <button type="submit" className="btn-save" disabled={loading}>
-              {loading ? <span className="spinner" /> : 'Thêm'}
+              {loading ? <span className="spinner" /> : 'Gửi lời mời'}
             </button>
           </div>
         </form>
@@ -148,15 +152,123 @@ function AddMemberModal({ groupId, onClose, onAdded }) {
   );
 }
 
+function DeleteGroupModal({ group, onClose, onDeleted }) {
+  const { deleteGroup } = useGroup();
+  const [loading, setLoading] = useState(false);
+
+  const handleDelete = async () => {
+    setLoading(true);
+    try {
+      await deleteGroup(group.id);
+      toast.success(`Đã xóa nhóm "${group.name}"`);
+      onDeleted();
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <h3>Xóa nhóm</h3>
+          <button className="modal-close" onClick={onClose}><X size={20} /></button>
+        </div>
+        <div className="modal-form">
+          <div className="delete-confirm-box">
+            <Trash2 size={32} color="var(--danger)" />
+            <p>Bạn có chắc muốn xóa nhóm <strong>"{group.name}"</strong>?</p>
+            <p className="delete-warning">Hành động này không thể hoàn tác. Toàn bộ dữ liệu chi tiêu, thu nhập và ngân sách của nhóm sẽ bị xóa.</p>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn-cancel" onClick={onClose}>Hủy</button>
+            <button className="btn-danger" onClick={handleDelete} disabled={loading}>
+              {loading ? <span className="spinner" /> : 'Xóa nhóm'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const roleLabels = { 0: 'Thành viên', 1: 'Quản trị', 2: 'Chủ nhóm' };
 const roleIcons = { 0: null, 1: Shield, 2: Crown };
 
+function InvitationsPanel() {
+  const { invitations, acceptInvitation, declineInvitation, fetchInvitations } = useGroup();
+  const [loadingId, setLoadingId] = useState(null);
+
+  if (invitations.length === 0) return null;
+
+  const handleAccept = async (inv) => {
+    setLoadingId(inv.id);
+    try {
+      const result = await acceptInvitation(inv.id);
+      toast.success(result.message || `Đã tham gia nhóm "${inv.groupName}"!`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+    } finally { setLoadingId(null); }
+  };
+
+  const handleDecline = async (inv) => {
+    setLoadingId(inv.id);
+    try {
+      await declineInvitation(inv.id);
+      toast.success('Đã từ chối lời mời');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+    } finally { setLoadingId(null); }
+  };
+
+  return (
+    <div className="invitations-panel">
+      <div className="invitations-header">
+        <Bell size={16} />
+        <h3>Lời mời tham gia nhóm</h3>
+        <span className="inv-badge">{invitations.length}</span>
+      </div>
+      <div className="invitations-list">
+        {invitations.map(inv => (
+          <div key={inv.id} className="invitation-item">
+            <div className="invitation-avatar">{inv.groupName[0]}</div>
+            <div className="invitation-info">
+              <div className="invitation-group">{inv.groupName}</div>
+              <div className="invitation-from">Được mời bởi <strong>{inv.inviterName}</strong></div>
+            </div>
+            <div className="invitation-actions">
+              <button
+                className="inv-btn accept"
+                onClick={() => handleAccept(inv)}
+                disabled={loadingId === inv.id}
+                title="Chấp thuận"
+              >
+                {loadingId === inv.id ? <span className="spinner spinner-sm" /> : <Check size={14} />}
+              </button>
+              <button
+                className="inv-btn decline"
+                onClick={() => handleDecline(inv)}
+                disabled={loadingId === inv.id}
+                title="Từ chối"
+              >
+                <XCircle size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function GroupsPage() {
-  const { groups, activeGroup, selectGroup, removeMember, fetchGroups } = useGroup();
+  const { groups, activeGroup, selectGroup, removeMember, fetchGroups, invitations } = useGroup();
   const { user } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [showAddMember, setShowAddMember] = useState(null);
   const [showRename, setShowRename] = useState(null);
+  const [showDelete, setShowDelete] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
 
   const displayGroup = selectedGroup || activeGroup;
@@ -171,6 +283,7 @@ export default function GroupsPage() {
     }
   };
 
+  const isOwner = (group) => group?.ownerId === user?.id;
   const isOwnerOrAdmin = (group) => {
     const member = group?.members?.find(m => m.userId === user?.id);
     return member?.role === 1 || member?.role === 2;
@@ -187,6 +300,9 @@ export default function GroupsPage() {
           <Plus size={18} /> Tạo nhóm
         </button>
       </div>
+
+      {/* Pending Invitations */}
+      <InvitationsPanel />
 
       <div className="groups-layout">
         {/* Groups List */}
@@ -217,16 +333,23 @@ export default function GroupsPage() {
                   {displayGroup.description && <p className="group-desc">{displayGroup.description}</p>}
                 </div>
               </div>
-              {isOwnerOrAdmin(displayGroup) && (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn-rename-group" onClick={() => setShowRename(displayGroup)}>
-                    <Edit2 size={15} /> Đặt tên
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {isOwnerOrAdmin(displayGroup) && (
+                  <>
+                    <button className="btn-rename-group" onClick={() => setShowRename(displayGroup)}>
+                      <Edit2 size={15} /> Đặt tên
+                    </button>
+                    <button className="btn-add-member" onClick={() => setShowAddMember(displayGroup.id)}>
+                      <UserPlus size={16} /> Mời thành viên
+                    </button>
+                  </>
+                )}
+                {isOwner(displayGroup) && (
+                  <button className="btn-delete-group" onClick={() => setShowDelete(displayGroup)}>
+                    <Trash2 size={15} /> Xóa nhóm
                   </button>
-                  <button className="btn-add-member" onClick={() => setShowAddMember(displayGroup.id)}>
-                    <UserPlus size={16} /> Thêm thành viên
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             <div className="members-list">
@@ -261,12 +384,19 @@ export default function GroupsPage() {
       </div>
 
       {showCreate && <CreateGroupModal onClose={() => setShowCreate(false)} onCreated={fetchGroups} />}
-      {showAddMember && <AddMemberModal groupId={showAddMember} onClose={() => setShowAddMember(null)} onAdded={fetchGroups} />}
+      {showAddMember && <AddMemberModal groupId={showAddMember} onClose={() => setShowAddMember(null)} onSent={() => {}} />}
       {showRename && (
         <RenameGroupModal
           group={showRename}
           onClose={() => setShowRename(null)}
           onSaved={() => { fetchGroups(); setSelectedGroup(null); }}
+        />
+      )}
+      {showDelete && (
+        <DeleteGroupModal
+          group={showDelete}
+          onClose={() => setShowDelete(null)}
+          onDeleted={() => setSelectedGroup(null)}
         />
       )}
     </div>

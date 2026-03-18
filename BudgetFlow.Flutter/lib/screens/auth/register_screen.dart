@@ -32,8 +32,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await context.read<AuthProvider>().register(_nameCtrl.text.trim(), _emailCtrl.text.trim(), _passCtrl.text);
     } catch (e) {
       if (mounted) {
+        String msg = 'Đăng ký thất bại';
+        final err = e.toString();
+        if (err.contains('400') || err.contains('already')) {
+          msg = 'Email đã được sử dụng';
+        } else if (err.contains('DioException') || err.contains('SocketException')) {
+          msg = 'Không thể kết nối server';
+        } else {
+          // Extract message from API response if available
+          final match = RegExp(r'"message"\s*:\s*"([^"]+)"').firstMatch(err);
+          if (match != null) msg = match.group(1)!;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đăng ký thất bại: ${e.toString()}'), backgroundColor: AppTheme.danger),
+          SnackBar(content: Text(msg), backgroundColor: AppTheme.danger),
         );
       }
     } finally {

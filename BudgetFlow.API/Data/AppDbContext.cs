@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<Budget> Budgets => Set<Budget>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<GroupInvitation> GroupInvitations => Set<GroupInvitation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,6 +33,22 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<Budget>()
             .HasIndex(b => new { b.CategoryId, b.GroupId, b.Month, b.Year }).IsUnique();
+
+        modelBuilder.Entity<GroupInvitation>()
+            .HasOne(i => i.Group).WithMany()
+            .HasForeignKey(i => i.GroupId).OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<GroupInvitation>()
+            .HasOne(i => i.Inviter).WithMany()
+            .HasForeignKey(i => i.InviterId).OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<GroupInvitation>()
+            .HasOne(i => i.Invitee).WithMany()
+            .HasForeignKey(i => i.InviteeId).OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<GroupInvitation>()
+            .HasIndex(i => new { i.GroupId, i.InviteeId, i.Status })
+            .HasFilter("\"Status\" = 0"); // Only unique pending per group+invitee
 
         modelBuilder.Entity<Expense>()
             .HasOne(e => e.User).WithMany(u => u.Expenses)

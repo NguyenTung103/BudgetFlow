@@ -68,6 +68,41 @@
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+.btn-delete-group { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: white; color: var(--danger); border: 1.5px solid var(--danger); border-radius: 8px; font-size: 0.875rem; font-weight: 600; transition: all 0.2s; }
+.btn-delete-group:hover { background: var(--danger); color: white; }
+
+/* Delete confirm modal */
+.delete-confirm-box { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 8px 0 16px; }
+.delete-confirm-box p { font-size: 0.95rem; color: var(--gray-700); margin: 0; }
+.delete-warning { font-size: 0.82rem !important; color: var(--gray-400) !important; }
+.btn-danger { padding: 10px 24px; border: none; border-radius: 8px; background: var(--danger); color: white; font-size: 0.875rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.btn-danger:hover:not(:disabled) { background: #b91c1c; }
+.btn-danger:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* Invitations panel */
+.invitations-panel { background: #FFF7ED; border: 1.5px solid #FED7AA; border-radius: var(--border-radius); padding: 16px 20px; }
+.invitations-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.invitations-header h3 { font-size: 0.875rem; font-weight: 600; color: #92400E; flex: 1; }
+.inv-badge { background: #F97316; color: white; font-size: 0.72rem; font-weight: 700; padding: 1px 7px; border-radius: 20px; }
+.invitations-list { display: flex; flex-direction: column; gap: 8px; }
+.invitation-item { display: flex; align-items: center; gap: 12px; background: white; border: 1px solid #FED7AA; border-radius: 10px; padding: 10px 14px; }
+.invitation-avatar { width: 36px; height: 36px; background: #F97316; color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; }
+.invitation-info { flex: 1; min-width: 0; }
+.invitation-group { font-size: 0.875rem; font-weight: 600; color: var(--gray-800); }
+.invitation-from { font-size: 0.75rem; color: var(--gray-400); margin-top: 2px; }
+.invitation-actions { display: flex; gap: 6px; }
+.inv-btn { width: 32px; height: 32px; border: none; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; cursor: pointer; }
+.inv-btn.accept { background: #D1FAE5; color: #065F46; }
+.inv-btn.accept:hover { background: #6EE7B7; }
+.inv-btn.decline { background: var(--gray-100); color: var(--danger); }
+.inv-btn.decline:hover { background: var(--danger-light); }
+.inv-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.spinner-sm { width: 12px; height: 12px; border-width: 1.5px; border-color: rgba(0,0,0,0.15); border-top-color: #065F46; }
+
+/* Invite info box */
+.invite-info-box { display: flex; align-items: flex-start; gap: 8px; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 10px 12px; font-size: 0.82rem; color: #1D4ED8; }
+.invite-info-box svg { flex-shrink: 0; margin-top: 1px; }
+
 @media (max-width: 768px) {
   .groups-layout { grid-template-columns: 1fr; }
 }

@@ -18,6 +18,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _api = ApiService();
   Map<String, dynamic>? _summary;
   bool _loading = true;
+  String? _error;
   final _fmt = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
   int? _lastGroupId;
 
@@ -46,7 +47,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final now = DateTime.now();
     final from = DateTime(now.year, now.month, 1);
     final to = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     try {
       final res = await _api.dio.get('/reports/summary', queryParameters: {
         'groupId': group.id,
@@ -54,8 +55,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'to': to.toIso8601String(),
       });
       setState(() { _summary = res.data; _loading = false; });
-    } catch (_) {
-      setState(() => _loading = false);
+    } catch (e) {
+      setState(() { _loading = false; _error = 'Không lấy được dữ liệu: $e'; });
     }
   }
 
@@ -100,7 +101,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-          : RefreshIndicator(
+          : _error != null
+              ? Center(child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.wifi_off_rounded, size: 48, color: AppTheme.textSecondary),
+                    const SizedBox(height: 12),
+                    Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.textSecondary)),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(onPressed: _fetchData, icon: const Icon(Icons.refresh), label: const Text('Thử lại')),
+                  ]),
+                ))
+              : RefreshIndicator(
               onRefresh: _fetchData,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
