@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
@@ -29,10 +30,21 @@ class GroupProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('[GroupProvider] fetchGroups error: $e');
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused') || e.toString().contains('Failed host lookup')) {
-        _error = 'Không thể kết nối server (${ApiConfig.baseUrl}).';
+      if (e is DioException) {
+        debugPrint('[GroupProvider] DioException type: ${e.type}, status: ${e.response?.statusCode}, message: ${e.message}');
+        switch (e.type) {
+          case DioExceptionType.connectionError:
+          case DioExceptionType.connectionTimeout:
+          case DioExceptionType.receiveTimeout:
+            _error = 'Không thể kết nối server (${ApiConfig.baseUrl})';
+          case DioExceptionType.badResponse:
+            final code = e.response?.statusCode;
+            _error = code == 401 ? 'Phiên đăng nhập hết hạn' : 'Lỗi server: $code';
+          default:
+            _error = 'Lỗi: ${e.message}';
+        }
       } else {
-        _error = 'Lỗi dữ liệu: $e';
+        _error = 'Lỗi không xác định: $e';
       }
       notifyListeners();
     }

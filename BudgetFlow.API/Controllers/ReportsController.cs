@@ -66,29 +66,36 @@ public class ReportsController : ControllerBase
 
     private async Task<ReportSummary> BuildSummaryAsync(int groupId, DateTime from, DateTime to)
     {
-        var expenses = await _db.Expenses.Include(e => e.Category)
-            .Where(e => e.GroupId == groupId && e.Date >= from && e.Date <= to).ToListAsync();
-        var incomes = await _db.Incomes.Include(i => i.Category)
-            .Where(i => i.GroupId == groupId && i.Date >= from && i.Date <= to).ToListAsync();
+        try
+        {
+            var expenses = await _db.Expenses.Include(e => e.Category)
+           .Where(e => e.GroupId == groupId && e.Date >= from && e.Date <= to).ToListAsync();
+            var incomes = await _db.Incomes.Include(i => i.Category)
+                .Where(i => i.GroupId == groupId && i.Date >= from && i.Date <= to).ToListAsync();
 
-        var totalExpense = expenses.Sum(e => e.Amount);
-        var totalIncome = incomes.Sum(i => i.Amount);
+            var totalExpense = expenses.Sum(e => e.Amount);
+            var totalIncome = incomes.Sum(i => i.Amount);
 
-        var expenseByCat = expenses.GroupBy(e => e.Category)
-            .Select(g => new CategoryBreakdown(g.Key.Id, g.Key.Name, g.Key.Icon, g.Key.Color,
-                g.Sum(e => e.Amount), totalExpense > 0 ? g.Sum(e => e.Amount) / totalExpense * 100 : 0))
-            .OrderByDescending(c => c.Amount).ToList();
+            var expenseByCat = expenses.GroupBy(e => e.Category)
+                .Select(g => new CategoryBreakdown(g.Key.Id, g.Key.Name, g.Key.Icon, g.Key.Color,
+                    g.Sum(e => e.Amount), totalExpense > 0 ? g.Sum(e => e.Amount) / totalExpense * 100 : 0))
+                .OrderByDescending(c => c.Amount).ToList();
 
-        var incomeByCat = incomes.GroupBy(i => i.Category)
-            .Select(g => new CategoryBreakdown(g.Key.Id, g.Key.Name, g.Key.Icon, g.Key.Color,
-                g.Sum(i => i.Amount), totalIncome > 0 ? g.Sum(i => i.Amount) / totalIncome * 100 : 0))
-            .OrderByDescending(c => c.Amount).ToList();
+            var incomeByCat = incomes.GroupBy(i => i.Category)
+                .Select(g => new CategoryBreakdown(g.Key.Id, g.Key.Name, g.Key.Icon, g.Key.Color,
+                    g.Sum(i => i.Amount), totalIncome > 0 ? g.Sum(i => i.Amount) / totalIncome * 100 : 0))
+                .OrderByDescending(c => c.Amount).ToList();
 
-        var allDates = Enumerable.Range(0, (int)(to - from).TotalDays + 1).Select(i => from.AddDays(i).Date);
-        var dailyTotals = allDates.Select(date => new DailyTotal(date,
-            incomes.Where(i => i.Date.Date == date).Sum(i => i.Amount),
-            expenses.Where(e => e.Date.Date == date).Sum(e => e.Amount))).ToList();
+            var allDates = Enumerable.Range(0, (int)(to - from).TotalDays + 1).Select(i => from.AddDays(i).Date);
+            var dailyTotals = allDates.Select(date => new DailyTotal(date,
+                incomes.Where(i => i.Date.Date == date).Sum(i => i.Amount),
+                expenses.Where(e => e.Date.Date == date).Sum(e => e.Amount))).ToList();
+            return new ReportSummary(totalIncome, totalExpense, totalIncome - totalExpense, expenseByCat, incomeByCat, dailyTotals);
+        }
+        catch(Exception ex)
+        {
 
-        return new ReportSummary(totalIncome, totalExpense, totalIncome - totalExpense, expenseByCat, incomeByCat, dailyTotals);
+        }
+        return null;
     }
 }
